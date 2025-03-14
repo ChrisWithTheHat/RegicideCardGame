@@ -1,40 +1,7 @@
 from dataclasses import dataclass
 from random import shuffle
+from DataStructures import Card, Hand, Player
 
-
-@dataclass
-class Card:
-    value: int
-    suit: str
-    name: str
-
-    def __repr__(self):
-        return f"{self.name} of {self.suit}"
-
-    def __str__(self):
-        return f"{self.name} of {self.suit}"
-
-class Hand:
-
-    def __init__(self, hand: list[Card]):
-        self.hand: list[Card] = hand
-
-    def __repr__(self):
-        return str([f"{no}: {value}" for no, value in enumerate(self.hand)])
-
-    def __str__(self):
-        return str([f"{no}: {value}" for no, value in enumerate(self.hand)])
-
-@dataclass
-class Player:
-    name: str
-    hand: Hand
-
-    def __repr__(self):
-        return self.name
-
-    def __str__(self):
-        return self.name
 
 class Game:
 
@@ -235,22 +202,6 @@ class TerminalDisplay:
             print(f"You also {action} {damage} cards.")
 
 
-
-def get_value(name: str):
-    match name:
-        case "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"| "10":
-            return int(name)
-        case "Ace":
-            return 1
-        case "Jack":
-            return 10
-        case "Queen":
-            return 15
-        case "King":
-            return 20
-        case "Jester":
-            return 0
-
 def generate_castle_deck(randomize: bool = False) -> list[Card]:
 
     castle_deck = []
@@ -260,7 +211,7 @@ def generate_castle_deck(randomize: bool = False) -> list[Card]:
     for name in names:
         suited_values = []
         for suit in suits:
-            suited_values.append(Card(get_value(name), suit, name))
+            suited_values.append(Card(suit, name))
 
         shuffle(suited_values)
         castle_deck += suited_values
@@ -275,7 +226,7 @@ def generate_tavern_deck(no_of_jokers):
     suits = ['Diamonds', 'Hearts', 'Clubs', 'Spades']
     names = ['Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10']
 
-    tavern_deck = [Card(get_value(name), suit, name) for name in names for suit in suits]
+    tavern_deck = [Card(suit, name) for name in names for suit in suits]
     tavern_deck += ['Jester']*no_of_jokers
     shuffle(tavern_deck)
 
