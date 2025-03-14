@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from random import shuffle
-from typing import Tuple
 
 
 @dataclass
@@ -98,11 +97,11 @@ class Game:
         if len(cards) != 1:
             return False
         else:
-            cards = cards[0]
-            damage = cards.value * 2 if cards.suit == 'Clubs' and current_enemy.suit != 'Clubs' else cards.value
-            shield = cards.value if cards.suit == 'Spades' else 0
-            effect = cards.value if cards.suit in ['Diamonds', 'Hearts'] and cards.suit != current_enemy.suit else 0
-            effect_type = cards.suit if cards.suit in ['Diamonds', 'Hearts'] and cards.suit != current_enemy.suit else []
+            card = cards[0]
+            damage = card.value * 2 if card.suit == 'Clubs' and current_enemy.suit != 'Clubs' else card.value
+            shield = card.value if card.suit == 'Spades' else 0
+            effect = card.value if card.suit in ['Diamonds', 'Hearts'] and card.suit != current_enemy.suit else 0
+            effect_type = [card.suit] if card.suit in ['Diamonds', 'Hearts'] and card.suit != current_enemy.suit else []
 
         return damage, shield, effect, effect_type
 
@@ -110,7 +109,7 @@ class Game:
     def can_combo(cards: list[Card]):
         names = [card.name for card in cards]
         values = [card.value for card in cards]
-        return len(set(names)) == 1 and sum(values) <= 10
+        return len(names) > 1 and len(set(names)) == 1 and sum(values) <= 10
 
     @staticmethod
     def combo(cards: list[Card], current_enemy: Card):
@@ -123,14 +122,19 @@ class Game:
         for card in cards:
 
             damage += card.value
-            shield += card.value
-            effect += card.value
 
-            if card.suit == 'Clubs' and card.suit != current_enemy.suit:
-                damage += card.value
-
-            if card.suit in ['Hearts', 'Diamonds'] and card.suit != current_enemy.suit:
+            if not card.suit == current_enemy.suit:
                 effect_type.append(card.suit)
+
+        effect_type = list(set(effect_type))
+        if "Spades" in effect_type:
+            shield = damage
+            effect_type.remove("Spades")
+        if "Clubs" in effect_type:
+            damage *= 2
+        if "Diamonds" in effect_type or "Hearts" in effect_type:
+            effect = damage
+
 
         return damage, shield, effect, effect_type
 
@@ -150,13 +154,15 @@ class Game:
         if not self.current_enemy:
             self.current_enemy = self.castle_deck.pop()
 
-        self.display.display_turn_info(self)
+        self.display.display_board_status(self)
+        cards, turn_results = self.display.get_user_turn(self)
+        self.display.display_turn_result(cards, turn_results)
 
 
 class TerminalDisplay:
 
     @staticmethod
-    def display_turn_info(game: Game):
+    def display_board_status(game: Game):
 
         current_player = game.current_player()
 
@@ -171,6 +177,63 @@ class TerminalDisplay:
         print(f"Cards in Tavern: {len(game.tavern_deck)}")
         print(f"Cards in Discard: {len(game.discard_pile)}")
         print("------------------")
+
+    @staticmethod
+    def get_user_turn(game: Game):
+
+        current_player = game.current_player()
+
+        print("---------| PLAY SELECTION |---------")
+        correct_input = False
+        while not correct_input:
+
+            correct_input = True
+
+            selection = input(f"Which card(s) would you like to play. Use commas to separate multiple cards... ")
+            selection = selection.split(",")
+            converted_selection = []
+            for choice in selection:
+                try:
+                    converted_choice = int(choice.strip())
+                    if not 0 <= converted_choice <= len(current_player.hand.hand) - 1:
+                        raise ValueError
+                    converted_selection.append(converted_choice)
+                except ValueError:
+                    print("!!! At least one of the values entered is not a valid selection !!!")
+                    correct_input = False
+                    break
+            if not correct_input:
+                continue
+
+            cards = [current_player.hand.hand[i] for i in converted_selection]
+            play_result = game.calculate_play(cards, game.current_enemy)
+
+            if not play_result:
+                print("!!! You entered an illegal play !!!")
+                correct_input = False
+                continue
+
+            return cards, play_result
+
+    @staticmethod
+    def display_turn_result(cards, turn_results):
+        damage, shield, effect, effect_types = turn_results
+        action = None
+        if len(effect_types) == 0:
+            pass
+        elif len(effect_types) == 2:
+            action = "refreshed and drew"
+        elif effect_types[0] == "Diamonds":
+            action = "drew"
+        elif effect_types[0] == "Hearts":
+            action = "refreshed"
+
+        print("---------| TURN INFO |---------")
+        print(f"You played: {str.join(", ", [str(card) for card in cards])}")
+        print(f"You dealt {damage} damage.")
+        if action:
+            print(f"You also {action} {damage} cards.")
+
 
 
 def get_value(name: str):
@@ -210,7 +273,7 @@ def generate_castle_deck(randomize: bool = False) -> list[Card]:
 def generate_tavern_deck(no_of_jokers):
 
     suits = ['Diamonds', 'Hearts', 'Clubs', 'Spades']
-    names = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+    names = ['Ace', '2', '3', '4', '5', '6', '7', '8', '9', '10']
 
     tavern_deck = [Card(get_value(name), suit, name) for name in names for suit in suits]
     tavern_deck += ['Jester']*no_of_jokers
